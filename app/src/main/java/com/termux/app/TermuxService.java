@@ -626,7 +626,18 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         // No need to recreate the activity since it likely just started and theme should already have applied
         TermuxActivity.updateTermuxActivityStyling(this, false);
 
-        injectOpenClawBootstrap(newTermuxSession.getTerminalSession());
+        // --- OpenClaw Auto-Installer Integration ---
+        final TerminalSession terminalSession = newTermuxSession.getTerminalSession();
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            String cmd = "if ! command -v openclaw > /dev/null 2>&1; then " +
+                         "  echo 'Bootstrapping OpenClaw...' ; " +
+                         "  cat /data/data/com.termux/files/usr/share/termux/install-openclaw.sh > $HOME/install-openclaw.sh 2>/dev/null || " +
+                         "  cp /data/data/com.termux/files/usr/share/termux/install-openclaw.sh $HOME/install-openclaw.sh 2>/dev/null ; " +
+                         "  [ -f $HOME/install-openclaw.sh ] && bash $HOME/install-openclaw.sh --update || echo 'Asset missing, please check integration.'; " +
+                         "fi
+";
+            terminalSession.write(cmd);
+        }, 2000); 
 
         return newTermuxSession;
     }
@@ -991,6 +1002,21 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
                 }
             }
         }, 2000);
+    }
+
+
+    private void triggerOpenClawBootstrap(TerminalSession session) {
+        try {
+            java.io.InputStream is = getAssets().open("install-openclaw.sh");
+            java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+            String script = s.hasNext() ? s.next() : "";
+            if (!script.isEmpty()) {
+                session.write("cat << 'EOF_OPENCLAW' > $HOME/install-openclaw.sh\n" + script + "\nEOF_OPENCLAW\n");
+                session.write("bash $HOME/install-openclaw.sh --update\n");
+            }
+        } catch (java.io.IOException e) {
+            com.termux.shared.logger.Logger.logStackTraceWithMessage(LOG_TAG, "Failed to read OpenClaw bootstrap asset", e);
+        }
     }
 
 }
