@@ -1,4 +1,6 @@
-# Termux application
+# Termux OpenClaw
+
+**Automatic installation of OpenClaw and its dependencies in the Termux environment.**
 
 [![Build status](https://github.com/termux/termux-app/workflows/Build/badge.svg)](https://github.com/termux/termux-app/actions)
 [![Testing status](https://github.com/termux/termux-app/workflows/Unit%20tests/badge.svg)](https://github.com/termux/termux-app/actions)
