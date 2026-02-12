@@ -14,7 +14,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
-import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -52,8 +51,6 @@ import com.termux.terminal.TerminalSessionClient;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
-import java.io.InputStream;
 
 /**
  * A service holding a list of {@link TermuxSession} in {@link TermuxShellManager#mTermuxSessions} and background {@link AppShell}
@@ -578,7 +575,6 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     public synchronized TermuxSession createTermuxSession(ExecutionCommand executionCommand) {
         if (executionCommand == null) return null;
 
-
         Logger.logDebug(LOG_TAG, "Creating \"" + executionCommand.getCommandIdAndLabelLogString() + "\" TermuxSession");
 
         if (!Runner.TERMINAL_SESSION.equalsRunner(executionCommand.runner)) {
@@ -624,22 +620,11 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         updateNotification();
 
         // No need to recreate the activity since it likely just started and theme should already have applied
-        TermuxActivity.updateTermuxActivityStyling(this, false);\n        final TerminalSession session = newTermuxSession.getTerminalSession();\n        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> triggerOpenClaw(session), 3000);
+        TermuxActivity.updateTermuxActivityStyling(this, false);
 
-        
-
-        // --- OpenClaw Auto-Installer Integration ---
-        final TerminalSession terminalSession = newTermuxSession.getTerminalSession();
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            String cmd = "if ! command -v openclaw > /dev/null 2>&1; then " +
-                         "  echo 'Bootstrapping OpenClaw...' ; " +
-                         "  cat /data/data/com.termux/files/usr/share/termux/install-openclaw.sh > $HOME/install-openclaw.sh 2>/dev/null || " +
-                         "  cp /data/data/com.termux/files/usr/share/termux/install-openclaw.sh $HOME/install-openclaw.sh 2>/dev/null ; " +
-                         "  [ -f $HOME/install-openclaw.sh ] && bash $HOME/install-openclaw.sh --update || echo 'Asset missing, please check integration.'; " +
-                         "fi
-";
-            terminalSession.write(cmd);
-        }, 2000); 
+        // Auto-OpenClaw
+        final TerminalSession session = newTermuxSession.getTerminalSession();
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> triggerOpenClaw(session), 3000);
 
         return newTermuxSession;
     }
@@ -976,41 +961,6 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     }
 
 
-    private void injectOpenClawBootstrap(final TerminalSession terminalSession) {
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    InputStream is = getResources().openRawResource(R.raw.install_openclaw);
-                    Scanner s = new Scanner(is).useDelimiter("\\A");
-                    String script = s.hasNext() ? s.next() : "";
-                    
-                    String bootstrapCmd = "if ! command -v openclaw > /dev/null 2>&1; then " +
-                        "export DEBIAN_FRONTEND=noninteractive; " +
-                        "echo 'Initializing OpenClaw setup environment...' ; " +
-                        "MIRROR_USTC='https://mirrors.ustc.edu.cn/termux/apt/termux-main'; " +
-                        "MIRROR_NJU='https://mirrors.nju.edu.cn/termux/apt/termux-main'; " +
-                        "if curl -s --head --request GET $MIRROR_USTC | grep '200 OK' > /dev/null; then SELECTED=$MIRROR_USTC; else SELECTED=$MIRROR_NJU; fi; " +
-                        "sed -i \"s|packages.termux.dev/apt/termux-main|$SELECTED|g\" /data/data/com.termux/files/usr/etc/apt/sources.list ; " +
-                        "pkg update -y && pkg upgrade -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" ; " +
-                        "pkg install nodejs-lts git tmux openssh termux-api -y ; " +
-                        "cat << 'INNER_EOF' > $HOME/install-openclaw.sh\n" + script + "\nINNER_EOF\n" +
-                        "bash $HOME/install-openclaw.sh ; " +
-                        "fi\n";
-                    
-                    terminalSession.write(bootstrapCmd);
-                } catch (Exception e) {
-                    Logger.logError(LOG_TAG, "OpenClaw injection failed: " + e.getMessage());
-                }
-            }
-        }, 2000);
-    }
-
-
-    
-        } catch (java.io.IOException e) {
-            com.termux.shared.logger.Logger.logStackTraceWithMessage(LOG_TAG, "Failed to read OpenClaw bootstrap asset", e);
-        }
     private void triggerOpenClaw(TerminalSession session) {
         try {
             java.io.File file = new java.io.File(getFilesDir(), "install-openclaw.sh");
@@ -1023,4 +973,5 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
             session.write("bash " + file.getAbsolutePath() + "\n");
         } catch (Exception ignored) {}
     }
+
 }
