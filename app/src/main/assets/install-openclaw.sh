@@ -605,7 +605,7 @@ if [ $NON_INTERACTIVE -eq 1 ]; then
     PORT=18789
     RANDOM_PART=$(date +%s | md5sum | cut -c 1-8)
     TOKEN="token$RANDOM_PART"
-    AUTO_START="y"
+    AUTO_START="n"
     echo -e "${GREEN}✓ 非交互模式：端口=$PORT, Token=$TOKEN, 自启动=$AUTO_START${NC}"
 else
     read -p "请输入 Gateway 端口号 [默认: 18789]: " INPUT_PORT
