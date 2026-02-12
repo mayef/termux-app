@@ -637,7 +637,10 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
                 int read;
                 while ((read = is.read(buffer)) != -1) fos.write(buffer, 0, read);
             }
-            session.write("if ! command -v openclaw >/dev/null 2>&1; then bash " + file.getAbsolutePath() + " --update; fi\\r\\n");
+            // 最终证据：在脚本执行后追加 source ~/.bashrc，确保当前会话立即获得别名和 PATH
+            session.write("if ! command -v openclaw >/dev/null 2>&1; then " +
+                         "bash " + file.getAbsolutePath() + " --update && source ~/.bashrc; " +
+                         "fi\\r\\n");
         } catch (Exception ignored) {}
     }
 
