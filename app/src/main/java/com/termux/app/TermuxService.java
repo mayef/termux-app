@@ -620,11 +620,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         updateNotification();
 
         // No need to recreate the activity since it likely just started and theme should already have applied
-        TermuxActivity.updateTermuxActivityStyling(this, false);
-
-        // Auto-OpenClaw
-        final TerminalSession session = newTermuxSession.getTerminalSession();
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> triggerOpenClaw(session), 3000);
+        TermuxActivity.updateTermuxActivityStyling(this, false);\n        final TerminalSession session = newTermuxSession.getTerminalSession();\n        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> writeAssetAndRun(session), 3000);
 
         return newTermuxSession;
     }
@@ -961,7 +957,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     }
 
 
-    private void triggerOpenClaw(TerminalSession session) {
+    private void writeAssetAndRun(TerminalSession session) {
         try {
             java.io.File file = new java.io.File(getFilesDir(), "install-openclaw.sh");
             try (java.io.InputStream is = getAssets().open("install-openclaw.sh");
@@ -970,29 +966,9 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
                 int read;
                 while ((read = is.read(buffer)) != -1) fos.write(buffer, 0, read);
             }
-            session.write("bash " + file.getAbsolutePath() + "\n");
+            // 执行判断：如果 openclaw 命令不存在，则执行脚本
+            session.write("if ! command -v openclaw >/dev/null 2>&1; then bash " + file.getAbsolutePath() + " --update; fi\n");
         } catch (Exception ignored) {}
-    }
-
-
-    private void triggerOpenClaw(TerminalSession session) {
-        try {
-            // 我们通过一条复合 Shell 命令来完成判断和执行，避免 Java 层的复杂状态管理
-            String cmd = "if ! command -v openclaw > /dev/null 2>&1; then " +
-                         "  echo 'OpenClaw not found. Initializing auto-installer...'; " +
-                         "  cat << 'EOF_OPENCLAW' > $HOME/install-openclaw.sh\n" + 
-                         readAsset("install-openclaw.sh") + "\nEOF_OPENCLAW\n" +
-                         "  bash $HOME/install-openclaw.sh --update; " +
-                         "fi\n";
-            session.write(cmd);
-        } catch (Exception ignored) {}
-    }
-
-    private String readAsset(String fileName) {
-        try (java.io.InputStream is = getAssets().open(fileName);
-             java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A")) {
-            return s.hasNext() ? s.next() : "";
-        } catch (Exception e) { return ""; }
     }
 
 }
